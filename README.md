@@ -1,6 +1,6 @@
 # dont_touch_timer
 
-A new Flutter project.
+カウントダウンタイマーアプリ開発用リポジトリ。
 
 ## Getting Started
 
