@@ -7,6 +7,8 @@ import 'package:quiver/async.dart';
 import 'package:vibration/vibration.dart';
 import 'package:audioplayers/audio_cache.dart';
 import 'package:flutter_sensors/flutter_sensors.dart';
+import 'package:admob_flutter/admob_flutter.dart';
+import 'ad_manager.dart';
 
 format(Duration d) => d.toString().split('.').first.padLeft(8, "0");
 
@@ -21,60 +23,35 @@ class CountdownState extends State<CountdownPage> {
   StreamSubscription<CountdownTimer> _sub;
   bool _isInit = false;
 
-  bool _accelAvailable = false;
   bool _gyroAvailable = false;
-  List<double> _accelData = List.filled(3, 0.0);
   List<double> _gyroData = List.filled(3, 0.0);
-  StreamSubscription _accelSubscription;
   StreamSubscription _gyroSubscription;
 
   final _player = AudioPlayer();
   final _audioCash = AudioCache();
 
+  GlobalKey<ScaffoldState> scaffoldState = GlobalKey();
+  AdmobReward rewardAd;
+
   @override
   void initState() {
-    _checkAccelerometerStatus();
     _checkGyroscopeStatus();
+
+    rewardAd = AdmobReward(
+        adUnitId: getRewardBasedVideoAdUnitId(),
+        listener: (AdmobAdEvent event, Map<String, dynamic> args) {
+          if (event == AdmobAdEvent.closed) rewardAd.load();
+          handleEvent(event, args, 'Reward');
+        });
+    rewardAd.load();
     super.initState();
   }
 
   @override
   void dispose() {
-    _stopAccelerometer();
     _stopGyroscope();
     _player.release();
     super.dispose();
-  }
-
-  void _checkAccelerometerStatus() async {
-    await SensorManager()
-        .isSensorAvailable(Sensors.ACCELEROMETER)
-        .then((result) {
-      setState(() {
-        _accelAvailable = result;
-      });
-    });
-  }
-
-  Future<void> _startAccelerometer() async {
-    if (_accelSubscription != null) return;
-    if (_accelAvailable) {
-      final stream = await SensorManager().sensorUpdates(
-        sensorId: Sensors.ACCELEROMETER,
-        interval: Sensors.SENSOR_DELAY_FASTEST,
-      );
-      _accelSubscription = stream.listen((sensorEvent) {
-        setState(() {
-          _accelData = sensorEvent.data;
-        });
-      });
-    }
-  }
-
-  void _stopAccelerometer() {
-    if (_accelSubscription == null) return;
-    _accelSubscription.cancel();
-    _accelSubscription = null;
   }
 
   void _checkGyroscopeStatus() async {
@@ -156,6 +133,48 @@ class CountdownState extends State<CountdownPage> {
     await _player.pause();
   }
 
+  void handleEvent(
+      AdmobAdEvent event, Map<String, dynamic> args, String adType) {
+    switch (event) {
+      case AdmobAdEvent.loaded:
+        print('New Admob $adType Ad loaded!');
+        break;
+      case AdmobAdEvent.opened:
+        print('Admob $adType Ad opened!');
+        break;
+      case AdmobAdEvent.closed:
+        print('Admob $adType Ad closed!');
+        break;
+      case AdmobAdEvent.failedToLoad:
+        print('Admob $adType failed to load. :(');
+        break;
+      case AdmobAdEvent.rewarded:
+        showDialog(
+          context: scaffoldState.currentContext,
+          builder: (BuildContext context) {
+            return WillPopScope(
+              child: AlertDialog(
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text('Reward callback fired. Thanks Andrew!'),
+                    Text('Type: ${args['type']}'),
+                    Text('Amount: ${args['amount']}'),
+                  ],
+                ),
+              ),
+              onWillPop: () async {
+                scaffoldState.currentState.hideCurrentSnackBar();
+                return true;
+              },
+            );
+          },
+        );
+        break;
+      default:
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_isInit) {
@@ -163,17 +182,10 @@ class CountdownState extends State<CountdownPage> {
       _isInit = true;
     }
 
-    if (_accelAvailable != null) {
-      _startAccelerometer();
-    }
-
     if (_gyroAvailable != null) {
       _startGyroscope();
     }
 
-    // print(_accelData);
-    // print(_gyroData);
-    print(_isHoldPhone());
     if (_isHoldPhone()) {
       Vibration.vibrate();
       _startAlert();
@@ -187,22 +199,40 @@ class CountdownState extends State<CountdownPage> {
         appBar: new AppBar(
           title: new Text('Don\'t touch timer'),
         ),
-        body: Container(
-          padding: EdgeInsets.all(16.0),
-          alignment: AlignmentDirectional.topCenter,
+        body: Center(
+            child: Container(
+          padding: EdgeInsets.all(8.0),
+          width: 340,
+          height: 340,
+          alignment: Alignment.center,
           child: Column(
             children: <Widget>[
-              Text(format(_current)),
+              Center(
+                  child: Text(
+                format(_current),
+                textAlign: TextAlign.center,
+                style: new TextStyle(
+                    fontWeight: FontWeight.normal, fontSize: 50.0),
+              )),
               RaisedButton(
-                onPressed: () {
-                  _sub.cancel();
-                  Navigator.of(context).pushReplacementNamed("/timer_setting");
-                },
-                child: new Text('CANCEL'),
-              )
+                  color: Colors.red,
+                  onPressed: () async {
+                    if (await rewardAd.isLoaded) {
+                      _sub.cancel();
+                      rewardAd.show();
+                      Navigator.of(context)
+                          .pushReplacementNamed("/timer_setting");
+                    } else {
+                      print("Reward ad is still loading...");
+                    }
+                  },
+                  child: new Text(
+                    'CANCEL',
+                    style: TextStyle(color: Colors.white),
+                  ))
             ],
           ),
-        ),
+        )),
       ),
     );
   }

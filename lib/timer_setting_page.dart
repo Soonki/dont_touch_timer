@@ -1,6 +1,8 @@
 import 'package:dont_touch_timer/countdown_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_duration_picker/flutter_duration_picker.dart';
+import 'ad_manager.dart';
+import 'package:admob_flutter/admob_flutter.dart';
 
 class TimerSettingPage extends StatefulWidget {
   @override
@@ -16,29 +18,33 @@ class TimerSettingState extends State<TimerSettingPage> {
       appBar: new AppBar(
         title: new Text('Don\'t touch timer'),
       ),
-      body: new Container(
-        padding: new EdgeInsets.all(32.0),
-        child: new Center(
-          child: new Column(
-            children: <Widget>[
-              new Expanded(
-                  child: DurationPicker(
-                duration: _duration,
-                onChange: (val) {
-                  this.setState(() => _duration = val);
-                },
-                snapToMins: 5.0,
-              )),
-              RaisedButton(
-                onPressed: () => Navigator.of(context).pushReplacementNamed(
-                    CountdownPage.routeName,
-                    arguments: _duration),
-                child: new Text('START'),
-              )
-            ],
-          ),
-        ),
-      ),
+      body: new Center(
+          child: Container(
+              height: 360,
+              width: 360,
+              child: new Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  new Expanded(
+                      child: DurationPicker(
+                    height: 240,
+                    width: 240,
+                    duration: _duration,
+                    onChange: (val) {
+                      this.setState(() => _duration = val);
+                    },
+                    snapToMins: 5.0,
+                  )),
+                  RaisedButton(
+                    onPressed: () => Navigator.of(context).pushReplacementNamed(
+                        CountdownPage.routeName,
+                        arguments: _duration),
+                    child: new Text('START',
+                        style: new TextStyle(color: Colors.white)),
+                    color: Colors.green,
+                  )
+                ],
+              ))),
     );
   }
 }
